@@ -1,28 +1,31 @@
 package com.koletar.jj.chestkeeper;
 
-import net.milkbowl.vault.economy.Economy;
-import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.configuration.serialization.ConfigurationSerialization;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.RegisteredServiceProvider;
-import org.bukkit.plugin.java.JavaPlugin;
-import com.koletar.jj.chestkeeper.org.mcstats.Metrics;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.FilenameFilter;
 import java.io.IOException;
-import java.net.URL;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Logger;
+
+import net.milkbowl.vault.economy.Economy;
+
+import org.bukkit.Bukkit;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.configuration.serialization.ConfigurationSerialization;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.RegisteredServiceProvider;
+import org.bukkit.plugin.java.JavaPlugin;
 
 /**
  * @author jjkoletar
+ * Modified by mattgd
  */
 public class ChestKeeper extends JavaPlugin {
     public static Logger logger;
@@ -36,7 +39,6 @@ public class ChestKeeper extends JavaPlugin {
     private Economy economy;
     private boolean needsUpdate = false;
     private boolean updateIsCritical = false;
-    private Metrics metrics;
 
     public static final class Config {
         private static int maxNumberOfChests = 10;
@@ -44,7 +46,6 @@ public class ChestKeeper extends JavaPlugin {
         private static double normalChestPrice = 1000;
         private static double largeChestPrice = 2000;
         private static int wandItemId = 0;
-        private static boolean autoUpdates = true;
         private static List<String> disabledWorlds = new LinkedList<String>();
 
         public static int getMaxNumberOfChests() {
@@ -126,21 +127,6 @@ public class ChestKeeper extends JavaPlugin {
             out.newLine();
         }
 
-        public static boolean getAutoUpdates() {
-            return autoUpdates;
-        }
-
-        private static void setAutoUpdates(boolean autoUpdates) {
-            Config.autoUpdates = autoUpdates;
-        }
-
-        public static void writeAutoUpdates(BufferedWriter out) throws IOException {
-            out.write("# Whether or not to have the plugin check for new version on server boot. You still must update manually. Set to false to disable.");
-            out.newLine();
-            out.write("autoUpdates: true");
-            out.newLine();
-        }
-
         public static List<String> getDisabledWorlds() {
             return new LinkedList<String>(disabledWorlds);
         }
@@ -177,8 +163,8 @@ public class ChestKeeper extends JavaPlugin {
         }
     }
 
-    protected static String getFileName(String username) {
-        return username.toLowerCase() + ".yml";
+    protected static String getFileName(String uuid) {
+        return uuid.toLowerCase() + ".yml";
     }
 
     static {
@@ -188,8 +174,7 @@ public class ChestKeeper extends JavaPlugin {
 
     public void onEnable() {
         logger = getLogger();
-        logger.info("ChestKeeper v" + getDescription().getVersion() + " enabling...");
-        logger.info("=-= ChestKeeper wouldn't be possible without the support of Don't Drop the Soap, MCPrison.com =-=");
+        logger.info("Enabling ChestKeeper " + getDescription().getVersion() + ".");
         Phrases.getInstance().initialize(Locale.ENGLISH);
         users = new HashMap<String, CKUser>();
         fileUsers = new LinkedList<String>();
@@ -204,13 +189,6 @@ public class ChestKeeper extends JavaPlugin {
         serializer = new YamlConfiguration();
         io = new ThreadIO(ioQueue, new File(getDataFolder(), "data"));
         getServer().getScheduler().runTaskAsynchronously(this, io);
-        if (!getDescription().getVersion().contains("dev")) {
-            getServer().getScheduler().runTaskAsynchronously(this, new Runnable() {
-                public void run() {
-                    checkUpdates();
-                }
-            });
-        }
         getCommand("chestkeeper").setExecutor(facilitator);
         getServer().getPluginManager().registerEvents(facilitator, this);
         RegisteredServiceProvider<Economy> economyProvider = getServer().getServicesManager().getRegistration(Economy.class);
@@ -222,19 +200,11 @@ public class ChestKeeper extends JavaPlugin {
             Config.setNormalChestPrice(0);
             Config.setLargeChestPrice(0);
         }
-        //Metrics
-        try {
-            metrics = new Metrics(this);
-            metrics.start();
-        } catch (IOException e) {
-            logger.warning("ChestKeeper couldn't initialize metrics!");
-            e.printStackTrace();
-        }
-        logger.info("ChestKeeper v" + getDescription().getVersion() + " enabled!");
+        logger.info("ChestKeeper " + getDescription().getVersion() + " enabled!");
     }
 
     public void onDisable() {
-        logger.info("ChestKeeper disabling...");
+        logger.info("Disabling...");
 
         for (CKUser user : users.values()) {
             user.forceClean();
@@ -242,7 +212,7 @@ public class ChestKeeper extends JavaPlugin {
         io.shutdown();
         YamlConfiguration conf = new YamlConfiguration();
         for (CKUser user : users.values()) {
-            File out = new File(new File(getDataFolder(), "data"), ChestKeeper.getFileName(user.getUsername()));
+            File out = new File(new File(getDataFolder(), "data"), ChestKeeper.getFileName(user.getUUID().toString()));
             conf.set("user", user);
             try {
                 conf.save(out);
@@ -252,25 +222,6 @@ public class ChestKeeper extends JavaPlugin {
         }
 
         logger.info("ChestKeeper disabled!");
-    }
-
-    private void checkUpdates() {
-        try {
-            if (!Config.getAutoUpdates()) {
-                return;
-            }
-            URL updateFile = new URL("http://dl.dropbox.com/u/16290839/ChestKeeper/update.yml");
-            YamlConfiguration updates = YamlConfiguration.loadConfiguration(updateFile.openStream());
-            int remoteVer = updates.getInt("version");
-            boolean isCritical = updates.getConfigurationSection(String.valueOf(remoteVer)).getBoolean("critical");
-            int localVer = Integer.valueOf(getDescription().getVersion().replace(".", ""));
-            if (remoteVer > localVer) {
-                needsUpdate = true;
-                updateIsCritical = isCritical;
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
     }
 
     public static void trace(String message) {
@@ -294,7 +245,6 @@ public class ChestKeeper extends JavaPlugin {
             Config.writeNormalChestPrice(out);
             Config.writeLargeChestPrice(out);
             Config.writeWandItemId(out);
-            Config.writeAutoUpdates(out);
             Config.writeDisabledWorlds(out);
             out.close();
         }
@@ -324,11 +274,6 @@ public class ChestKeeper extends JavaPlugin {
             Config.setWandItemId(config.getInt("wandItemId"));
         } else {
             Config.writeWandItemId(out);
-        }
-        if (config.contains("autoUpdates")) {
-            Config.setAutoUpdates(config.getBoolean("autoUpdates"));
-        } else {
-            Config.writeAutoUpdates(out);
         }
         if (config.contains("disabledWorlds")) {
             Config.setDisabledWorlds(config.getStringList("disabledWorlds"));
@@ -365,18 +310,18 @@ public class ChestKeeper extends JavaPlugin {
         return economy != null;
     }
 
-    private void loadUser(String username) {
-        if (!users.containsKey(username) && fileUsers.contains(username)) {
-            trace("loading " + username);
-            File userFile = new File(new File(getDataFolder(), "data"), getFileName(username));
+    private void loadUser(String username, String uuid) {
+        if (!users.containsKey(username) && fileUsers.contains(uuid)) {
+            trace("loading " + uuid);
+            File userFile = new File(new File(getDataFolder(), "data"), getFileName(uuid));
             YamlConfiguration userConfig = YamlConfiguration.loadConfiguration(userFile);
             if (userConfig.contains("user")) {
                 Object o = userConfig.get("user");
                 if (o instanceof CKUser) {
                     users.put(username, (CKUser) o);
-                    fileUsers.remove(username);
+                    fileUsers.remove(uuid);
                 } else {
-                    logger.severe("Error loading user " + username + ", wasn't a ckuser object");
+                    logger.severe("Error loading user " + uuid + ", wasn't a CKUser object.");
                 }
             }
         }
@@ -389,14 +334,30 @@ public class ChestKeeper extends JavaPlugin {
      * @return CKUser of the username
      */
     protected CKUser getUser(String username) {
-        if (fileUsers.contains(username.toLowerCase())) {
-            loadUser(username.toLowerCase());
+    	// Get the user's UUID
+    	Player chestPlayer = Bukkit.getPlayer(username);
+    	String uuid;
+    	if (chestPlayer == null) {
+    		UUIDFetcher fetcher = new UUIDFetcher(Arrays.asList(username));
+			Map<String, UUID> response = null;
+			try {
+				response = fetcher.call();
+			} catch (Exception e) {
+				logger.severe("Exception while running UUIDFetcher");
+				e.printStackTrace();
+			}
+			uuid = response.get(username).toString();
+    	} else {
+    		uuid = chestPlayer.getUniqueId().toString();
+    	}
+        if (fileUsers.contains(uuid)) {
+            loadUser(username, uuid);
         }
-        if (users.containsKey(username.toLowerCase())) {
-            return users.get(username.toLowerCase());
+        if (users.containsKey(username)) {
+            return users.get(username);
         } else {
-            CKUser user = new CKUser(username.toLowerCase());
-            users.put(username.toLowerCase(), user);
+            CKUser user = new CKUser(username);
+            users.put(username, user);
             return user;
         }
     }
@@ -419,17 +380,34 @@ public class ChestKeeper extends JavaPlugin {
      */
     protected CKUser matchUser(String username) {
         String matchedUser = null;
+        
+        // Get the user's UUID
+        Player chestPlayer = Bukkit.getPlayer(username);
+    	String uuid;
+    	if (chestPlayer == null) {
+    		UUIDFetcher fetcher = new UUIDFetcher(Arrays.asList(username));
+			Map<String, UUID> response = null;
+			try {
+				response = fetcher.call();
+			} catch (Exception e) {
+				logger.severe("Exception while running UUIDFetcher");
+				e.printStackTrace();
+			}
+			uuid = response.get(username).toString();
+    	} else {
+    		uuid = chestPlayer.getUniqueId().toString();
+    	}
         for (String fileUser : fileUsers) {
-            boolean matched = fileUser.contains(username.toLowerCase());
+            boolean matched = fileUser.contains(uuid);
             if (matchedUser == null && matched) {
-                matchedUser = fileUser;
+                matchedUser = username;
             } else if (matchedUser != null && matched) {
-                //Ended up matching two users
+                // Ended up matching two users
                 return null;
             }
         }
         for (String memoryUser : users.keySet()) {
-            boolean matched = memoryUser.contains(username.toLowerCase());
+            boolean matched = memoryUser.equalsIgnoreCase(username);
             if (matchedUser == null && matched) {
                 matchedUser = memoryUser;
             } else if (matchedUser != null && matched) {
@@ -445,12 +423,12 @@ public class ChestKeeper extends JavaPlugin {
      * @param user CKUser to save
      */
     protected void queueUser(CKUser user) {
-        trace("queuing user " + user.getUsername());
-        final String username = user.getUsername();
+        trace("queuing user " + user.getUUID());
+        final String uuid = user.getUUID().toString();
         serializer.set("user", user);
         final String serialized = serializer.saveToString();
         synchronized (ioQueue) {
-            ioQueue.put(username, serialized);
+            ioQueue.put(uuid, serialized);
             ioQueue.notifyAll();
         }
     }

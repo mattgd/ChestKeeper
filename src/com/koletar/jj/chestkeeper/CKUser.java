@@ -1,11 +1,5 @@
 package com.koletar.jj.chestkeeper;
 
-import org.bukkit.Bukkit;
-import org.bukkit.configuration.serialization.ConfigurationSerializable;
-import org.bukkit.enchantments.Enchantment;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemStack;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.HashMap;
@@ -15,12 +9,21 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.UUID;
+
+import org.bukkit.Bukkit;
+import org.bukkit.configuration.serialization.ConfigurationSerializable;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 
 /**
  * @author jjkoletar
+ * Modified by mattgd
  */
 public class CKUser implements ConfigurationSerializable {
     private String username;
+    private UUID uuid;
     private String defaultChest;
     private SortedMap<String, CKChest> chests;
     private HashMap<String, CKChest> inventoryPairings;
@@ -29,6 +32,7 @@ public class CKUser implements ConfigurationSerializable {
 
     public CKUser(String username) {
         this.username = username;
+        this.uuid = Bukkit.getPlayer(username).getUniqueId();
         chests = new TreeMap<String, CKChest>();
         inventoryPairings = new HashMap<String, CKChest>();
         magic = username.hashCode();
@@ -43,6 +47,8 @@ public class CKUser implements ConfigurationSerializable {
                 defaultChest = entry.getValue() == null ? "" : entry.getValue().toString();
             } else if (entry.getKey().equals("username")) {
                 username = entry.getValue().toString();
+            } else if (entry.getKey().equals("uuid")) {
+                uuid = UUID.fromString(entry.getValue().toString());
             } else if (entry.getKey().equals("magic")) {
                 magic = Integer.valueOf(entry.getValue().toString());
             } else if (entry.getKey().equals("chestLimit")) {
@@ -57,6 +63,7 @@ public class CKUser implements ConfigurationSerializable {
         Map<String, Object> me = new HashMap<String, Object>();
         me.put("defaultChest", defaultChest);
         me.put("username", username);
+        me.put("uuid", uuid.toString());
         me.put("magic", magic);
         me.put("chestLimit", chestLimit);
         for (Map.Entry<String, CKChest> entry : chests.entrySet()) {
@@ -74,10 +81,10 @@ public class CKUser implements ConfigurationSerializable {
     }
 
     public boolean createChest(String name, boolean isLargeChest) {
-        if (name.equalsIgnoreCase("defaultChest") || name.equalsIgnoreCase("username") || name.equalsIgnoreCase("magic") || chests.containsKey(name.toLowerCase())) {
+        if (name.equalsIgnoreCase("defaultChest") || name.equalsIgnoreCase("username") || name.equalsIgnoreCase("uuid") || name.equalsIgnoreCase("magic") || chests.containsKey(name.toLowerCase())) {
             return false;
         }
-        chests.put(name.toLowerCase(), new CKChest(name, isLargeChest));
+        chests.put(name.toLowerCase(), new CKChest(username, isLargeChest));
         return true;
     }
 
@@ -95,9 +102,8 @@ public class CKUser implements ConfigurationSerializable {
         return openChest(key);
     }
 
-    public Inventory openChest(String name) {
-        String lowerName = name.toLowerCase();
-        CKChest chest = chests.get(lowerName);
+    public Inventory openChest(String uuid) {
+        CKChest chest = chests.get(uuid);
         if (chest == null) {
             return null;
         }
@@ -122,6 +128,10 @@ public class CKUser implements ConfigurationSerializable {
 
     public String getUsername() {
         return username;
+    }
+    
+    public UUID getUUID() {
+        return uuid;
     }
 
     public int getNumberOfChests() {
@@ -172,7 +182,8 @@ public class CKUser implements ConfigurationSerializable {
         this.chestLimit = chestLimit;
     }
 
-    public void fromVC(BufferedReader chestYml, String defaultChest) {
+    @SuppressWarnings("deprecation")
+	public void fromVC(BufferedReader chestYml, String defaultChest) {
         String currentChest = null;
         boolean isLargeChest = false;
         boolean areReadingItems = false;

@@ -1,8 +1,23 @@
 package com.koletar.jj.chestkeeper;
 
+import static com.koletar.jj.chestkeeper.ChestKeeper.trace;
+import static com.koletar.jj.chestkeeper.Phrases.phrase;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 import net.milkbowl.vault.economy.EconomyResponse;
+
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
@@ -21,19 +36,6 @@ import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.Inventory;
-
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
-import static com.koletar.jj.chestkeeper.ChestKeeper.trace;
-import static com.koletar.jj.chestkeeper.Phrases.phrase;
 
 /**
  * @author jjkoletar
@@ -155,7 +157,7 @@ public class CKFacilitator implements CommandExecutor, Listener {
                     }
                     if (args[1].equalsIgnoreCase("small") || args[1].equalsIgnoreCase("normal")) {
                         if (ChestKeeper.Config.getNormalChestPrice() > 0) {
-                            EconomyResponse er = plugin.getEconomy().withdrawPlayer(p.getName(), ChestKeeper.Config.getNormalChestPrice());
+                            EconomyResponse er = plugin.getEconomy().withdrawPlayer((OfflinePlayer) p, ChestKeeper.Config.getNormalChestPrice());
                             if (!er.transactionSuccess()) {
                                 p.sendMessage(phrase("youreTooPoor"));
                                 return true;
@@ -168,7 +170,7 @@ public class CKFacilitator implements CommandExecutor, Listener {
                         return true;
                     } else if (args[1].equalsIgnoreCase("large") || args[1].equalsIgnoreCase("double")) {
                         if (ChestKeeper.Config.getLargeChestPrice() > 0) {
-                            EconomyResponse er = plugin.getEconomy().withdrawPlayer(p.getName(), ChestKeeper.Config.getLargeChestPrice());
+                            EconomyResponse er = plugin.getEconomy().withdrawPlayer((OfflinePlayer) p, ChestKeeper.Config.getLargeChestPrice());
                             if (!er.transactionSuccess()) {
                                 p.sendMessage(phrase("youreTooPoor"));
                                 return true;
@@ -437,7 +439,7 @@ public class CKFacilitator implements CommandExecutor, Listener {
             if (price < 0) {
                 price = 0;
             }
-            EconomyResponse er = plugin.getEconomy().withdrawPlayer(p.getName(), price);
+            EconomyResponse er = plugin.getEconomy().withdrawPlayer((OfflinePlayer) p, price);
             if (!er.transactionSuccess()) {
                 p.sendMessage(phrase("youreTooPoor"));
                 return;
@@ -629,7 +631,8 @@ public class CKFacilitator implements CommandExecutor, Listener {
         }
     }
 
-    @EventHandler
+    @SuppressWarnings("deprecation")
+	@EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getAction().equals(Action.RIGHT_CLICK_BLOCK)) {
             if (event.getClickedBlock() != null && (event.getClickedBlock().getType().equals(Material.WALL_SIGN) || event.getClickedBlock().getType().equals(Material.SIGN_POST))) {
@@ -671,7 +674,7 @@ public class CKFacilitator implements CommandExecutor, Listener {
                             return;
                         }
                         if (ChestKeeper.Config.getNormalChestPrice() > 0 && plugin.hasEconomy()) {
-                            EconomyResponse er = plugin.getEconomy().withdrawPlayer(p.getName(), ChestKeeper.Config.getNormalChestPrice());
+                            EconomyResponse er = plugin.getEconomy().withdrawPlayer((OfflinePlayer) p, ChestKeeper.Config.getNormalChestPrice());
                             if (!er.transactionSuccess()) {
                                 p.sendMessage(phrase("youreTooPoor"));
                                 return;

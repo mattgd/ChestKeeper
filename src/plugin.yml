@@ -1,7 +1,7 @@
 main: com.koletar.jj.chestkeeper.ChestKeeper
 name: ChestKeeper
-version: $version$
-author: jjkoletar
+version: 2.0
+authors: [jjkoletar, mattgd]
 softdepend: [Vault]
 commands:
   chestkeeper:

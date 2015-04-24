@@ -26,7 +26,7 @@ public class CKChest implements ConfigurationSerializable {
     }
 
     public CKChest(Map<String, Object> me) {
-        if (me.size() - 2 != SMALL_CHEST_SIZE && me.size() - 2 != LARGE_CHEST_SIZE) { //Minus two offsets for the == and _title
+        if (me.size() - 2 != SMALL_CHEST_SIZE && me.size() - 2 != LARGE_CHEST_SIZE) { // Minus two offsets for the == and _title
             throw new IllegalArgumentException("Size of item list is not the size of a large or small chest");
         }
         contents = new ItemStack[me.size() - 2];

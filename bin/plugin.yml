@@ -1,0 +1,10 @@
+main: com.koletar.jj.chestkeeper.ChestKeeper
+name: ChestKeeper
+version: 2.0
+authors: [jjkoletar, mattgd]
+softdepend: [Vault]
+commands:
+  chestkeeper:
+    aliases: [ck, gp, vc, chest]
+    description: Manage your ChestKeeper.
+    usage: /chestkeeper <subcommand>
