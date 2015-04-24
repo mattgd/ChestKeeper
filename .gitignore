@@ -2,3 +2,6 @@
 *.iml
 build
 ChestKeeper.jar
+.settings
+.classpath
+.project
