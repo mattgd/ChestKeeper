@@ -1,6 +1,6 @@
 main: com.koletar.jj.chestkeeper.ChestKeeper
-name: ChestKeeper
-version: 1.0
+name: ${project.name}
+version: ${project.version}
 authors: [jjkoletar, mattgd]
 softdepend: [Vault]
 commands:

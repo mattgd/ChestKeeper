@@ -174,7 +174,7 @@ public class ChestKeeper extends JavaPlugin {
 
     public void onEnable() {
         logger = getLogger();
-        logger.info("Enabling ChestKeeper " + getDescription().getVersion() + ".");
+        logger.info("Enabling ChestKeeper " + getDescription().getVersion() + "");
         Phrases.getInstance().initialize(Locale.ENGLISH);
         users = new HashMap<String, CKUser>();
         fileUsers = new LinkedList<String>();
