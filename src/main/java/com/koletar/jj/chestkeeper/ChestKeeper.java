@@ -17,6 +17,7 @@ import java.util.logging.Logger;
 import net.milkbowl.vault.economy.Economy;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.configuration.serialization.ConfigurationSerialization;
 import org.bukkit.entity.Player;
@@ -45,8 +46,8 @@ public class ChestKeeper extends JavaPlugin {
         private static double chestOpenPrice = 0;
         private static double normalChestPrice = 1000;
         private static double largeChestPrice = 2000;
-        private static int wandItemId = 0;
-        private static List<String> disabledWorlds = new LinkedList<String>();
+        private static Material wandItem = null;
+        private static List<String> disabledWorlds = new LinkedList<>();
 
         public static int getMaxNumberOfChests() {
             return maxNumberOfChests;
@@ -110,20 +111,20 @@ public class ChestKeeper extends JavaPlugin {
             out.newLine();
         }
 
-        public static int getWandItemId() {
-            return wandItemId;
+        public static Material getWandItem() {
+            return wandItem;
         }
 
-        private static void setWandItemId(int wandItemId) {
-            Config.wandItemId = wandItemId;
+        private static void setWandItem(Material wandItem) {
+            Config.wandItem = wandItem;
         }
 
-        public static void writeWandItemId(BufferedWriter out) throws IOException {
-            out.write("# Item ID of a 'wand' item which, when used while the item is in hand, opens a user's default chest, set to 0 to disable feature.");
+        public static void writeWandItem(BufferedWriter out) throws IOException {
+            out.write("# Material name of a 'wand' item which, when used while the item is in hand, opens a user's default chest, set to null to disable feature.");
             out.newLine();
             out.write("# Users will need the 'chestkeeper.use.wand' permission. Check http://www.minecraftwiki.net/wiki/Data_values for item IDs.");
             out.newLine();
-            out.write("wandItemId: 0");
+            out.write("wandItem: null");
             out.newLine();
         }
 
@@ -244,7 +245,7 @@ public class ChestKeeper extends JavaPlugin {
             Config.writeChestOpenPrice(out);
             Config.writeNormalChestPrice(out);
             Config.writeLargeChestPrice(out);
-            Config.writeWandItemId(out);
+            Config.writeWandItem(out);
             Config.writeDisabledWorlds(out);
             out.close();
         }
@@ -270,10 +271,10 @@ public class ChestKeeper extends JavaPlugin {
         } else {
             Config.writeLargeChestPrice(out);
         }
-        if (config.contains("wandItemId")) {
-            Config.setWandItemId(config.getInt("wandItemId"));
+        if (config.contains("wandItem")) {
+            Config.setWandItem(Material.valueOf(config.getString("wandItem")));
         } else {
-            Config.writeWandItemId(out);
+            Config.writeWandItem(out);
         }
         if (config.contains("disabledWorlds")) {
             Config.setDisabledWorlds(config.getStringList("disabledWorlds"));

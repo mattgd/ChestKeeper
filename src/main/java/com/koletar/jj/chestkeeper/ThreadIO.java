@@ -8,6 +8,7 @@ import java.util.Map;
 
 /**
  * @author jjkoletar
+ * Modified by mattgd
  */
 public class ThreadIO implements Runnable {
     private final Map<String, String> ioQueue;
@@ -28,7 +29,7 @@ public class ThreadIO implements Runnable {
                     while (isRunning && ioQueue.isEmpty()) {
                         ioQueue.wait();
                     }
-                    toWrite = new HashMap<String, String>();
+                    toWrite = new HashMap<>();
                     toWrite.putAll(ioQueue);
                     ioQueue.clear();
                 }

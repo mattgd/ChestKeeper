@@ -25,40 +25,8 @@ public class CKChest implements ConfigurationSerializable {
         this.title = title;
     }
 
-    public CKChest(Map<String, Object> me) {
-        if (me.size() - 2 != SMALL_CHEST_SIZE && me.size() - 2 != LARGE_CHEST_SIZE) { // Minus two offsets for the == and _title
-            throw new IllegalArgumentException("Size of item list is not the size of a large or small chest");
-        }
-        contents = new ItemStack[me.size() - 2];
-        for (Map.Entry<String, Object> entry : me.entrySet()) {
-            if (entry.getKey().equalsIgnoreCase("_title")) {
-                title = entry.getValue().toString();
-                continue;
-            } else if (entry.getKey().equalsIgnoreCase("==")) {
-                continue;
-            }
-            int i = -1;
-            try {
-                i = Integer.valueOf(entry.getKey());
-            } catch (NumberFormatException nfe) {
-                throw new IllegalArgumentException("A key wasn't an integer, " + entry.getKey());
-            }
-            ItemStack is;
-            try {
-                is = (ItemStack) entry.getValue();
-            } catch (ClassCastException cce) {
-                throw new IllegalArgumentException("A value wasn't an itemstack");
-            }
-            try {
-                contents[i] = is;
-            } catch (ArrayIndexOutOfBoundsException aioobe) {
-                throw new IllegalArgumentException("A key was out of bounds with the array");
-            }
-        }
-    }
-
     public Map<String, Object> serialize() {
-        Map<String, Object> me = new HashMap<String, Object>();
+        Map<String, Object> me = new HashMap<>();
         for (int i = 0; i < contents.length; i++) {
             me.put(String.valueOf(i), contents[i]);
         }
@@ -124,12 +92,12 @@ public class CKChest implements ConfigurationSerializable {
     private static String makeMagic(int magic) {
         StringBuilder sb = new StringBuilder();
         char[] digits = String.valueOf(magic).toCharArray();
-        for (int i = 0; i < digits.length; i++) {
+        for (char digit : digits) {
             sb.append("\u00A7");
-            if (digits[i] == '-') {
+            if (digit == '-') {
                 sb.append('f');
             } else {
-                sb.append(digits[i]);
+                sb.append(digit);
             }
         }
         return sb.toString();

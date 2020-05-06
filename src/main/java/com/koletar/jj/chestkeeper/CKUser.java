@@ -12,10 +12,14 @@ import java.util.TreeMap;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.Damageable;
+import org.bukkit.inventory.meta.ItemMeta;
 
 /**
  * @author jjkoletar
@@ -33,15 +37,15 @@ public class CKUser implements ConfigurationSerializable {
     public CKUser(String username) {
         this.username = username;
         this.uuid = Bukkit.getPlayer(username).getUniqueId();
-        chests = new TreeMap<String, CKChest>();
-        inventoryPairings = new HashMap<String, CKChest>();
+        chests = new TreeMap<>();
+        inventoryPairings = new HashMap<>();
         magic = username.hashCode();
         defaultChest = "";
     }
 
     public CKUser(Map<String, Object> me) {
-        chests = new TreeMap<String, CKChest>();
-        inventoryPairings = new HashMap<String, CKChest>();
+        chests = new TreeMap<>();
+        inventoryPairings = new HashMap<>();
         for (Map.Entry<String, Object> entry : me.entrySet()) {
             if (entry.getKey().equals("defaultChest")) {
                 defaultChest = entry.getValue() == null ? "" : entry.getValue().toString();
@@ -50,9 +54,9 @@ public class CKUser implements ConfigurationSerializable {
             } else if (entry.getKey().equals("uuid")) {
                 uuid = UUID.fromString(entry.getValue().toString());
             } else if (entry.getKey().equals("magic")) {
-                magic = Integer.valueOf(entry.getValue().toString());
+                magic = Integer.parseInt(entry.getValue().toString());
             } else if (entry.getKey().equals("chestLimit")) {
-                chestLimit = Integer.valueOf(entry.getValue().toString());
+                chestLimit = Integer.parseInt(entry.getValue().toString());
             } else if (entry.getValue() instanceof CKChest) {
                 chests.put(entry.getKey(), (CKChest) entry.getValue());
             }
@@ -60,7 +64,7 @@ public class CKUser implements ConfigurationSerializable {
     }
 
     public Map<String, Object> serialize() {
-        Map<String, Object> me = new HashMap<String, Object>();
+        Map<String, Object> me = new HashMap<>();
         me.put("defaultChest", defaultChest);
         me.put("username", username);
         me.put("uuid", uuid.toString());
@@ -108,13 +112,13 @@ public class CKUser implements ConfigurationSerializable {
             return null;
         }
         Inventory inventory = chest.getInventory(magic);
-        inventoryPairings.put(inventory.getTitle(), chest);
+        inventoryPairings.put(chest.getTitle(), chest);
         return inventory;
     }
 
-    public boolean save(Inventory inventory) {
-        if (inventoryPairings.containsKey(inventory.getTitle())) {
-            return inventoryPairings.get(inventory.getTitle()).save();
+    public boolean save(Inventory inventory, InventoryView view) {
+        if (inventoryPairings.containsKey(view.getTitle())) {
+            return inventoryPairings.get(view.getTitle()).save();
         }
         return false;
     }
@@ -182,13 +186,12 @@ public class CKUser implements ConfigurationSerializable {
         this.chestLimit = chestLimit;
     }
 
-    @SuppressWarnings("deprecation")
 	public void fromVC(BufferedReader chestYml, String defaultChest) {
         String currentChest = null;
         boolean isLargeChest = false;
         boolean areReadingItems = false;
         ItemStack currentItem = null;
-        List<ItemStack> items = new LinkedList<ItemStack>();
+        List<ItemStack> items = new LinkedList<>();
         try {
             boolean done = false;
             while (!done) {
@@ -223,20 +226,22 @@ public class CKUser implements ConfigurationSerializable {
                             if (currentItem != null) {
                                 items.add(currentItem);
                             }
-                            currentItem = new ItemStack(1);
+                            currentItem = new ItemStack(Material.STONE);
                         } else if (areReadingItems && line.startsWith("    count: ")) {
-                            int i = Integer.valueOf(line.substring(11));
+                            int i = Integer.parseInt(line.substring(11));
                             currentItem.setAmount(i);
                         } else if (areReadingItems && line.startsWith("    damage: ")) {
-                            short s = Short.valueOf(line.substring(12));
-                            currentItem.setDurability(s);
+                            short s = Short.parseShort(line.substring(12));
+                            Damageable dim = (Damageable) currentItem.getItemMeta();
+                            dim.setDamage(s);
+                            currentItem.setItemMeta((ItemMeta) dim);
                         } else if (areReadingItems && line.startsWith("    id: ")) {
-                            int id = Integer.valueOf(line.substring(8));
+                            int id = Integer.parseInt(line.substring(8));
                             currentItem.setTypeId(id);
                         } else if (areReadingItems && line.startsWith("      ")) {
                             String ench = line.substring(6);
                             String[] bits = ench.split(": ");
-                            currentItem.addUnsafeEnchantment(Enchantment.getById(Integer.valueOf(bits[0])), Integer.valueOf(bits[1]));
+                            currentItem.addUnsafeEnchantment(Enchantment.getById(Integer.valueOf(bits[0])), Integer.parseInt(bits[1]));
                         }
                     } catch (NumberFormatException nfe) {
                         Bukkit.getLogger().info("[ChestKeeper] Error converting line: " + line);

@@ -21,6 +21,8 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Sign;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.type.WallSign;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -36,9 +38,11 @@ import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryView;
 
 /**
  * @author jjkoletar
+ * Modified by mattgd
  */
 public class CKFacilitator implements CommandExecutor, Listener {
     private ChestKeeper plugin;
@@ -46,7 +50,7 @@ public class CKFacilitator implements CommandExecutor, Listener {
 
     public CKFacilitator(ChestKeeper plugin) {
         this.plugin = plugin;
-        openChests = new HashMap<String, CKUser>();
+        openChests = new HashMap<>();
     }
 
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
@@ -170,7 +174,7 @@ public class CKFacilitator implements CommandExecutor, Listener {
                         return true;
                     } else if (args[1].equalsIgnoreCase("large") || args[1].equalsIgnoreCase("double")) {
                         if (ChestKeeper.Config.getLargeChestPrice() > 0) {
-                            EconomyResponse er = plugin.getEconomy().withdrawPlayer((OfflinePlayer) p, ChestKeeper.Config.getLargeChestPrice());
+                            EconomyResponse er = plugin.getEconomy().withdrawPlayer(p, ChestKeeper.Config.getLargeChestPrice());
                             if (!er.transactionSuccess()) {
                                 p.sendMessage(phrase("youreTooPoor"));
                                 return true;
@@ -349,7 +353,7 @@ public class CKFacilitator implements CommandExecutor, Listener {
                         return true;
                     }
                     File players = new File(vcDir, "Players");
-                    Map<String, String> defaultChests = new HashMap<String, String>();
+                    Map<String, String> defaultChests = new HashMap<>();
                     for (File playerFile : players.listFiles(new ChestKeeper.YMLFilter())) {
                         YamlConfiguration conf = YamlConfiguration.loadConfiguration(playerFile);
                         if (conf.contains("DefaultChest")) {
@@ -370,8 +374,6 @@ public class CKFacilitator implements CommandExecutor, Listener {
                             File out = new File(new File(plugin.getDataFolder(), "data"), ChestKeeper.getFileName(user.getUsername()));
                             conf.set("user", user);
                             conf.save(out);
-                        } catch (FileNotFoundException e) {
-                            e.printStackTrace();
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
@@ -405,7 +407,7 @@ public class CKFacilitator implements CommandExecutor, Listener {
                         //Set limit
                         int limit;
                         try {
-                            limit = Integer.valueOf(args[2]);
+                            limit = Integer.parseInt(args[2]);
                         } catch (NumberFormatException nfe) {
                             sender.sendMessage(phrase("badArgs"));
                             return true;
@@ -502,7 +504,7 @@ public class CKFacilitator implements CommandExecutor, Listener {
             p.sendMessage(phrase("noChests"));
             return;
         }
-        sendChest(p, user, user.openChest());
+        sendChest(p, user, user.openChest(), user.getChest().getTitle());
     }
 
     private void openChest(Player p, String chestName) {
@@ -515,25 +517,26 @@ public class CKFacilitator implements CommandExecutor, Listener {
             p.sendMessage(phrase("unknownChest", chestName));
             return;
         }
-        sendChest(p, user, chest);
+        sendChest(p, user, chest, p.getOpenInventory());
     }
 
-    private void sendChest(Player p, CKUser user, Inventory chest) {
-        trace("Sending player " + p.getName() + " " + user.getUsername() + "'s " + chest.getName());
-        openChests.put(chest.getTitle(), user);
+    private void sendChest(Player p, CKUser user, Inventory chest, InventoryView view) {
+        trace("Sending player " + p.getName() + " " + user.getUsername() + "'s " + view.getTitle());
+        openChests.put(view.getTitle(), user);
         p.openInventory(chest);
     }
 
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
+        InventoryView invView = event.getView();
         Inventory inventory = event.getInventory();
-        boolean isOurs = openChests.containsKey(inventory.getTitle());
+        boolean isOurs = openChests.containsKey(invView.getTitle());
         boolean isOutOfView = inventory.getViewers().size() - 1 == 0;
-        trace("Inventory closed: " + inventory.getName() + ", isOurs: " + isOurs + ", isOutOfView: " + isOutOfView);
+        trace("Inventory closed: " + invView.getTitle() + ", isOurs: " + isOurs + ", isOutOfView: " + isOutOfView);
         if (isOurs && isOutOfView) {
-            CKUser user = openChests.get(inventory.getTitle());
+            CKUser user = openChests.get(invView.getTitle());
             openChests.remove(user);
-            if (user.save(inventory)) {
+            if (user.save(inventory, invView)) {
                 trace("Save successful, queueing");
                 plugin.queueUser(user);
             } else {
@@ -576,6 +579,7 @@ public class CKFacilitator implements CommandExecutor, Listener {
                 for (int i = 1; i < lines.length; i++) {
                     if (lines[i] != null && !lines[i].equals("")) {
                         empty = false;
+                        break;
                     }
                 }
                 if (empty) {
@@ -595,6 +599,7 @@ public class CKFacilitator implements CommandExecutor, Listener {
                 for (int i = 1; i < lines.length; i++) {
                     if (lines[i] != null && !lines[i].equals("")) {
                         empty = false;
+                        break;
                     }
                 }
                 if (empty) {
@@ -635,7 +640,7 @@ public class CKFacilitator implements CommandExecutor, Listener {
 	@EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getAction().equals(Action.RIGHT_CLICK_BLOCK)) {
-            if (event.getClickedBlock() != null && (event.getClickedBlock().getType().equals(Material.WALL_SIGN) || event.getClickedBlock().getType().equals(Material.SIGN_POST))) {
+            if (event.getClickedBlock() != null && (event.getClickedBlock().getBlockData() instanceof WallSign || event.getClickedBlock().getBlockData() instanceof org.bukkit.block.data.type.Sign)) {
                 BlockState state = event.getClickedBlock().getState();
                 if (state instanceof Sign) {
                     Sign sign = (Sign) state;
@@ -688,8 +693,8 @@ public class CKFacilitator implements CommandExecutor, Listener {
                 }
             }
         } else if (event.getAction().equals(Action.LEFT_CLICK_AIR)) {
-            if (ChestKeeper.Config.getWandItemId() != 0) {
-                if (event.getItem() != null && event.getItem().getTypeId() == ChestKeeper.Config.getWandItemId() && event.getPlayer().hasPermission("chestkeeper.use.wand")) {
+            if (ChestKeeper.Config.getWandItem() != null) {
+                if (event.getItem() != null && event.getItem().getType().equals(ChestKeeper.Config.getWandItem()) && event.getPlayer().hasPermission("chestkeeper.use.wand")) {
                     openDefaultChest(event.getPlayer());
                 }
             }
@@ -704,7 +709,8 @@ public class CKFacilitator implements CommandExecutor, Listener {
     }
 
     private boolean checkBlock(Block block) {
-        if (block.getType().equals(Material.SIGN_POST) || block.getType().equals(Material.WALL_SIGN)) {
+        BlockData bd = block.getBlockData();
+        if (bd instanceof WallSign || bd instanceof org.bukkit.block.data.type.Sign) {
             Sign sign = (Sign) block.getState();
             String line1 = sign.getLine(0);
             if (line1.equals(phrase("keeperSignReader")) || line1.equals(phrase("upgradeSignReader")) || line1.equals(phrase("buySignReader"))) {
@@ -718,15 +724,13 @@ public class CKFacilitator implements CommandExecutor, Listener {
     public void onPlayerJoin(PlayerJoinEvent event) {
         if (event.getPlayer().hasPermission("chestkeeper.updates") && plugin.needsUpdate()) {
             final Player player = event.getPlayer();
-            plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
-                public void run() {
-                    player.sendMessage(phrase("updateWarning1"));
-                    player.sendMessage(phrase("updateWarning2"));
-                    if (plugin.isUpdateCritical()) {
-                        player.sendMessage(phrase("criticalUpdateWarningDecoration"));
-                        player.sendMessage(phrase("criticalUpdateWarning"));
-                        player.sendMessage(phrase("criticalUpdateWarningDecoration"));
-                    }
+            plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, () -> {
+                player.sendMessage(phrase("updateWarning1"));
+                player.sendMessage(phrase("updateWarning2"));
+                if (plugin.isUpdateCritical()) {
+                    player.sendMessage(phrase("criticalUpdateWarningDecoration"));
+                    player.sendMessage(phrase("criticalUpdateWarning"));
+                    player.sendMessage(phrase("criticalUpdateWarningDecoration"));
                 }
             });
         }
